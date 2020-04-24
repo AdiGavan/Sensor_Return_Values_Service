@@ -65,7 +65,6 @@ def query_single_values(sensorType, methodType, beginningPeriod, endingPeriod):
         size = len(record)
 
     if successful:
-        #jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : float(value)})
         jsonResponse = jsonify({"status" : "Success", "size" : size, "value" : float(value)})
     else:
         jsonResponse = jsonify({"status" : "Failed", "size" : 0, "value" : float(value)})        
@@ -107,7 +106,6 @@ def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod,
                     cursor.execute("select extract(%s from sensor_timestamp), round(max(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
 
         records = cursor.fetchall()
-            #value = record[0][0]
 
     except:
         successful = False
@@ -151,52 +149,4 @@ def take_data():
     return jsonResponse
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
-
-
-
-    # ---------------- Comentarii logica parsare (amintit pentru etapa 2) -------------------
-
-
-    # Test postman:
-
-"""
-    {
-	    "ReturnType" : "multiple_values", "SensorType" : "Pressure", "Method" : "smallest_value", "PeriodType" : "week", "NumberOfPeriod" : "7"
-    }
-"""
-
-    # 1. Mai intai verific daca e pentru statistica sau doar pentru valoare => ReturnType : single_value sau multiple_values
-    # 2. Dupa verific dupa tip senzor => SensorType : Temperature, BoardTemperature, Pressure, Humidity, AirQuality, LightIntensity
-    
-    # 3. Pentru single_value:   
-
-    # 3.1. Method :
-
-    # a. mean_value
-    # b. smalles_value
-    # c. biggest_value
-    # d. oldest_value
-    # e. newest_value
-    # f. specific_moment -> pentru asta nu conteaza period type, doar ca trebuie pus neaparat o valoare de tipul data si timp exact la numberofperiod
-
-    # Trebuie mecanisme de verificare!!! mai ales ca difera ultima chestie!! + sa blocheze de pe android sa scrii in mai multe o data, sau daca scrii
-    # in mai multe o data sa le faca pe rand (daca am un buton de ok... ) sau pun ok la fiecare... la statistics merge doar una o data..
-
-    # Defapt si la statistics si la value in android pot face o singura linie pentru completarea campurilor si fac o lista si pentru cele de la a, b, c, d ...
-
-    # De ex sa arate ceva default pe font gri si in timp ce selectez optiunile sa se schimbe textul din casute si sa spuna "does not matter" si "format type: ....."
-
-    # 3.2. Pentu toate de mai sus o sa urmeze si PeriodType : [days, weeks, months, years, specific_period] si dupa NumberOfPeriod : o valoare pentru cate zile ani etc in urma din ziua curenta / un interval de tipul data - data cumva
-
-
-    # 4. Pentru statistics (aici fac doar pentru o perioada in urma fata de ziua curenta):
-
-    # 4.1 Method :
-
-    # a. mean_values 
-    # b. biggest_values
-    # c. smalles_values
-    # d. all_values -> la all values e obligatoriu setat days si se vor lua toate valorile dintr-o zi, iar la number of period pun pt cate zile fac asta
-
-    # 4.2.fiecare va avea PeriodType : [days, weeks, months, years] si NumberOfPeriod : o valoare pentru cate PeriodType; aici daca e days face media pe fiecare zi si pentru fiecare zi returneaza o valoare pt grafic. la fel si pt luna an etc... si number of period e numarul de puncte de pe graf 
+    app.run(host="0.0.0.0")
