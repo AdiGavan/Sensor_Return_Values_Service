@@ -40,6 +40,7 @@ def query_single_values(sensorType, methodType, beginningPeriod, endingPeriod):
     # If the select returns a value it will be updated and used
     value = -1000000
     successful = True
+    record = []
 
     try:
         if methodType == "Average":
@@ -61,9 +62,10 @@ def query_single_values(sensorType, methodType, beginningPeriod, endingPeriod):
     if (len(record) > 0):
         value = record[0][0]
     if successful:
-        jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : value})
+        #jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : float(value)})
+        jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : record})
     else:
-        jsonResponse = jsonify({"status" : "Failed", "size" : 0, "value" : value})        
+        jsonResponse = jsonify({"status" : "Failed", "size" : 0, "value" : float(value)})        
 
     if cursor is not None:
         cursor.close()
@@ -77,6 +79,7 @@ def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod,
     cursor = db.cursor()
 
     successful = True
+    records = []
 
     try:
 
