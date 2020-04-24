@@ -1,133 +1,148 @@
 from flask import Flask, request, jsonify
+import psycopg2
+from prometheus_flask_exporter import PrometheusMetrics
 
 app = Flask(__name__)
 
-# Single Value
-def query_single_mean_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_single_mean_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
+metrics = PrometheusMetrics(app)
 
-def query_single_smallest_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_single_smallest_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
+metrics.info('app_info_sensor_Return', 'Application info', version='1.0.3')
 
-def query_single_biggest_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_single_biggest_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
 
-def query_single_oldest_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_single_oldest_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
+@app.before_first_request
+def before_first_request_func():
 
-def query_single_newest_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_single_newest_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
+    db = psycopg2.connect(host='db_sensors', port=5432, user='postgres', password='postgres', dbname='sensors_info_db')
 
-def query_single_specific_moment(sensorType, periodType, numberOfPeriod):
-    date_and_time = numberOfPeriod.split(" ")
-    time = date_and_time[1]
-    date = date_and_time[0]
+    cursor = db.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE if not exists sensors_values (
+                id SERIAL PRIMARY KEY,
+                sensor_type VARCHAR(20) NOT NULL,
+                sensor_timestamp TIMESTAMP NOT NULL,
+                sensor_value NUMERIC (12, 6) NOT NULL
+
+        )
+        """)
+    cursor.close()
+    db.commit()
+    if db is not None:
+        db.close()
+
+
+def query_single_values(sensorType, methodType, beginningPeriod, endingPeriod):
     
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_single_specific_moment", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
+    db = psycopg2.connect(host='db_sensors', port=5432, user='postgres', password='postgres', dbname='sensors_info_db')
+    cursor = db.cursor()
 
-# Function for querying the database and returning a single value
-def query_single_values(sensorType, methodType, periodType, numberOfPeriod):
-    if methodType == "mean_value":
-        json_answer = query_single_mean_value(sensorType, periodType, numberOfPeriod)
+    # Default if nothing is returned from select. It is used only when sending the json back for compatibility
+    # If the select returns a value it will be updated and used
+    value = -1000000
+    successful = True
 
-    elif methodType == "smallest_value":
-        json_answer = query_single_smallest_value(sensorType, periodType, numberOfPeriod)
+    try:
+        if methodType == "Average":
+            cursor.execute("select round(avg(sensor_value), 6) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s", (sensorType, beginningPeriod, endingPeriod)) 
+        elif methodType == "Smallest":
+            cursor.execute("select min(sensor_value) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s", (sensorType, beginningPeriod, endingPeriod))
+        elif methodType == "Biggest":
+            cursor.execute("select max(sensor_value) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s", (sensorType, beginningPeriod, endingPeriod))
+        elif methodType == "Oldest":
+            cursor.execute("select sensor_value from sensors_values where id = (select min(id) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s)", (sensorType, beginningPeriod, endingPeriod)) 
+        elif methodType == "Newest":
+            cursor.execute("select sensor_value from sensors_values where id = (select max(id) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s)", (sensorType, beginningPeriod, endingPeriod)) 
 
-    elif methodType == "biggest_value":
-        json_answer = query_single_biggest_value(sensorType, periodType, numberOfPeriod)
+        record = cursor.fetchall()
+
+    except:
+        successful = False
+
+    if (len(record) > 0):
+        value = record[0][0]
+    if successful:
+        jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : value})
+    else:
+        jsonResponse = jsonify({"status" : "Failed", "size" : 0, "value" : value})        
+
+    if cursor is not None:
+        cursor.close()
+    if db is not None:
+        db.close()
+
+    return jsonResponse
+
+def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod, methodPerInteval):
+    db = psycopg2.connect(host='db_sensors', port=5432, user='postgres', password='postgres', dbname='sensors_info_db')
+    cursor = db.cursor()
+
+    successful = True
+
+    try:
+
+        if methodType == "all":
+            cursor.execute("select sensor_timestamp, sensor_value from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s", (sensorType, beginningPeriod, endingPeriod))
+        else:
+            if methodPerInteval == "day":
+
+                if methodType == "Average":
+                    cursor.execute("select sensor_timestamp::date, round(avg(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
+                elif methodType == "Smallest":
+                    cursor.execute("select sensor_timestamp::date, round(min(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
+                elif methodType == "Biggest":
+                    cursor.execute("select sensor_timestamp::date, round(max(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
+            
+            else:
+                if methodType == "Average":
+                    cursor.execute("select extract(%s from sensor_timestamp), round(avg(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+                elif methodType == "Smallest":
+                    cursor.execute("select extract(%s from sensor_timestamp), round(min(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+                elif methodType == "Biggest":
+                    cursor.execute("select extract(%s from sensor_timestamp), round(max(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+
+        records = cursor.fetchall()
+        #value = record[0][0]
+
+    except:
+        successful = False
+
+    if (len(records) > 0):
+        list_of_values = []
+        for raw in records:
+            list_of_values.append({str(raw[0]) : float(raw[1])})
     
-    elif methodType == "oldest_value":
-        json_answer = query_single_oldest_value(sensorType, periodType, numberOfPeriod)
+    if successful:
+        jsonResponse = jsonify({"status" : "Success", "size" : len(records), "values" : list_of_values})
+    else:
+        jsonResponse = jsonify({"status" : "Failed", "size" : 0, "values" : list_of_values})        
 
-    elif methodType == "newest_value":
-        json_answer = query_single_newest_value(sensorType, periodType, numberOfPeriod)
+    if cursor is not None:
+        cursor.close()
+    if db is not None:
+        db.close()
 
-    elif methodType == "specific_moment":
-        json_answer = query_single_specific_moment(sensorType, periodType, numberOfPeriod)
-    
-    return json_answer
-    
-    
-# Multiple values for statistics
-def query_multiple_mean_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_multiple_mean_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
+    return jsonResponse
 
-def query_multiple_smallest_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_multiple_smallest_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
 
-def query_multiple_biggest_value(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_multiple_biggest_value", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
-
-def query_multiple_all_values(sensorType, periodType, numberOfPeriod):
-    # TODO interogare db
-    # Test raspuns
-    json_answer = jsonify({"SensorType" : sensorType, "Method" : "query_multiple_all_values", "PeriodType" : periodType, "NumberOfPeriod" : numberOfPeriod})
-    return json_answer
-
-# Function for querying the database and returning a multiple values for statistics
-def query_multiple_values(sensorType, methodType, periodType, numberOfPeriod):
-    if methodType == "mean_value":
-        json_answer = query_multiple_mean_value(sensorType, periodType, numberOfPeriod)
-
-    elif methodType == "smallest_value":
-        json_answer = query_multiple_smallest_value(sensorType, periodType, numberOfPeriod)
-
-    elif methodType == "biggest_value":
-        json_answer =  query_multiple_biggest_value(sensorType, periodType, numberOfPeriod)
-
-    elif methodType == "all_values":
-        json_answer =  query_multiple_all_values(sensorType, periodType, numberOfPeriod)
-    
-    return json_answer
-
- 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['POST'])
 def take_data():
 
     jsonData = request.get_json()
-    returnType = jsonData['ReturnType']
-    sensorType = jsonData['SensorType']
-    methodType = jsonData['Method']
-    periodType = jsonData['PeriodType']
-    numberOfPeriod = jsonData['NumberOfPeriod']
-    
-    # TODO conectare db
+    returnType = jsonData['returntype']
+    sensorType = jsonData['sensortype']
+    methodType = jsonData['method']
+    beginningPeriod = jsonData['beginningperiod']
+    endingPeriod = jsonData['endingperiod']
+    methodPerInteval = jsonData['methodperinterval']
 
     # Tipul senzorului nu trebuie parsat pentru ca il dau functiei direct si in db o sa se faca interogarea doar pentru tipul respectiv de senzor
-    if returnType == "single_value":
-        json_answer = query_single_values(sensorType, methodType, periodType, numberOfPeriod)
+    if returnType == "singlevalue":
+        jsonResponse = query_single_values(sensorType, methodType, beginningPeriod, endingPeriod)
 
-    elif returnType == "multiple_values":
-        json_answer = query_multiple_values(sensorType, methodType, periodType, numberOfPeriod)
+    elif returnType == "multiplevalues":
+        jsonResponse = query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod, methodPerInteval)
 
-    return json_answer
+    return jsonResponse
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0")
