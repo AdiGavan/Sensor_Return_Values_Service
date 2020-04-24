@@ -59,11 +59,14 @@ def query_single_values(sensorType, methodType, beginningPeriod, endingPeriod):
     except:
         successful = False
 
-    if (len(record) > 0):
+    size = 0
+    if (len(record) > 0 and record[0][0] is not None):
         value = float(record[0][0])
+        size = len(record)
+
     if successful:
         #jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : float(value)})
-        jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : float(value)})
+        jsonResponse = jsonify({"status" : "Success", "size" : size, "value" : float(value)})
     else:
         jsonResponse = jsonify({"status" : "Failed", "size" : 0, "value" : float(value)})        
 
