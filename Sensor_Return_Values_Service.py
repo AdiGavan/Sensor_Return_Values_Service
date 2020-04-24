@@ -106,8 +106,8 @@ def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod,
     except:
         successful = False
 
+    list_of_values = []
     if (len(records) > 0):
-        list_of_values = []
         for raw in records:
             list_of_values.append({str(raw[0]) : float(raw[1])})
     
