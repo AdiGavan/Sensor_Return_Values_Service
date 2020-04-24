@@ -60,10 +60,10 @@ def query_single_values(sensorType, methodType, beginningPeriod, endingPeriod):
         successful = False
 
     if (len(record) > 0):
-        value = record[0][0]
+        value = float(record[0][0])
     if successful:
         #jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : float(value)})
-        jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : record})
+        jsonResponse = jsonify({"status" : "Success", "size" : len(record), "value" : float(value)})
     else:
         jsonResponse = jsonify({"status" : "Failed", "size" : 0, "value" : float(value)})        
 
@@ -81,33 +81,33 @@ def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod,
     successful = True
     records = []
 
-    #try:
+    try:
 
-    if methodType == "all":
-        cursor.execute("select sensor_timestamp, sensor_value from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s", (sensorType, beginningPeriod, endingPeriod))
-    else:
-        if methodPerInteval == "day":
-
-            if methodType == "Average":
-                cursor.execute("select sensor_timestamp::date, round(avg(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
-            elif methodType == "Smallest":
-                cursor.execute("select sensor_timestamp::date, round(min(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
-            elif methodType == "Biggest":
-                cursor.execute("select sensor_timestamp::date, round(max(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
-        
+        if methodType == "all":
+            cursor.execute("select sensor_timestamp, sensor_value from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s", (sensorType, beginningPeriod, endingPeriod))
         else:
-            if methodType == "Average":
-                cursor.execute("select extract(%s from sensor_timestamp), round(avg(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
-            elif methodType == "Smallest":
-                cursor.execute("select extract(%s from sensor_timestamp), round(min(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
-            elif methodType == "Biggest":
-                cursor.execute("select extract(%s from sensor_timestamp), round(max(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+            if methodPerInteval == "day":
 
-    records = cursor.fetchall()
-        #value = record[0][0]
+                if methodType == "Average":
+                    cursor.execute("select sensor_timestamp::date, round(avg(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
+                elif methodType == "Smallest":
+                    cursor.execute("select sensor_timestamp::date, round(min(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
+                elif methodType == "Biggest":
+                    cursor.execute("select sensor_timestamp::date, round(max(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
+            
+            else:
+                if methodType == "Average":
+                    cursor.execute("select extract(%s from sensor_timestamp), round(avg(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+                elif methodType == "Smallest":
+                    cursor.execute("select extract(%s from sensor_timestamp), round(min(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+                elif methodType == "Biggest":
+                    cursor.execute("select extract(%s from sensor_timestamp), round(max(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
 
-    #except:
-        #successful = False
+        records = cursor.fetchall()
+            #value = record[0][0]
+
+    except:
+        successful = False
 
     list_of_values = []
     if (len(records) > 0):
