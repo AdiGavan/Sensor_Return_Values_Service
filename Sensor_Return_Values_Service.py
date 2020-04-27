@@ -85,10 +85,10 @@ def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod,
 
     try:
 
-        if methodType == "all":
+        if methodType == "All":
             cursor.execute("select sensor_timestamp, sensor_value from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s", (sensorType, beginningPeriod, endingPeriod))
         else:
-            if methodPerInteval == "day":
+            if methodPerInteval == "Day":
 
                 if methodType == "Average":
                     cursor.execute("select sensor_timestamp::date, round(avg(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
@@ -97,13 +97,21 @@ def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod,
                 elif methodType == "Biggest":
                     cursor.execute("select sensor_timestamp::date, round(max(sensor_value),2) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by sensor_timestamp::date order by sensor_timestamp::date", (sensorType, beginningPeriod, endingPeriod))
             
-            else:
+            elif methodPerInteval == "Year":
                 if methodType == "Average":
                     cursor.execute("select extract(%s from sensor_timestamp), round(avg(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
                 elif methodType == "Smallest":
                     cursor.execute("select extract(%s from sensor_timestamp), round(min(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
                 elif methodType == "Biggest":
                     cursor.execute("select extract(%s from sensor_timestamp), round(max(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s group by extract(%s from sensor_timestamp) order by extract(%s from sensor_timestamp)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+            
+            else:
+                if methodType == "Average":
+                    cursor.execute("select cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text), round(avg(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text) order by cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+                elif methodType == "Smallest":
+                    cursor.execute("select cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text), round(min(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text) order by cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
+                elif methodType == "Biggest":
+                    cursor.execute("select cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text), round(max(sensor_value),3) from sensors_values where sensor_type = %s and sensor_timestamp >= %s and sensor_timestamp <= %s cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text) order by cast(extract(year from sensor_timestamp) AS text) || '-' || cast(extract(%s from sensor_timestamp) AS text)", (methodPerInteval, sensorType, beginningPeriod, endingPeriod, methodPerInteval, methodPerInteval))
 
         records = cursor.fetchall()
 
