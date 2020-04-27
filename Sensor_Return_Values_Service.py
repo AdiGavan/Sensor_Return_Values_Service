@@ -113,7 +113,7 @@ def query_multiple_values(sensorType, methodType, beginningPeriod, endingPeriod,
     list_of_values = []
     if (len(records) > 0):
         for raw in records:
-            list_of_values.append({str(raw[0]) : float(raw[1])})
+            list_of_values.append({"x" : str(raw[0]), "y" : float(raw[1])})
     
     if successful:
         jsonResponse = jsonify({"status" : "Success", "size" : len(records), "values" : list_of_values})
